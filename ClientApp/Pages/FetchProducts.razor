@@ -1,0 +1,91 @@
+@page "/fetchproducts"
+
+@using System.Net.Http.Json
+@inject HttpClient HttpClient
+
+<h3>Product List</h3>
+
+@if (isLoading)
+{
+    <p>Loading...</p>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p>Error: @errorMessage</p>
+}
+else if (products != null && products.Length > 0)
+{
+    <ul>
+        @foreach (var product in products)
+        {
+            <li>
+                <strong>@product.Name</strong>
+                - $@product.Price
+                - Stock: @product.Stock
+                - Category: @product.Category.Name
+            </li>
+        }
+    </ul>
+}
+else
+{
+    <p>No products found.</p>
+}
+
+@code {
+    private Product[]? products;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    private async Task LoadProductsAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            products = await HttpClient.GetFromJsonAsync<Product[]>(
+                "/api/productlist");
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"API request failed: {ex.Message}";
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            errorMessage = $"Invalid JSON response: {ex.Message}";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "The API request timed out.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unexpected error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public double Price { get; set; }
+        public int Stock { get; set; }
+        public Category Category { get; set; } = new();
+    }
+
+    public class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+}
